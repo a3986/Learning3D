@@ -20,6 +20,8 @@
         <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
         <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>-->
         <script src="babylon.custom.js"></script>
+        <script src="babylon.gui.js"></script>
+        <script src="https://preview.babylonjs.com/materialsLibrary/babylon.skyMaterial.min.js"></script>
 
         <style>
             html, body {
@@ -45,6 +47,9 @@
   var camera;
    var shadowGenerator;
    var shadowGenerator2;
+   var skyboxMaterial;
+   var skybox;
+   var rlsSound;
         var createScene = function () {
             var scene = new BABYLON.Scene(engine);
             scene.gravity = new BABYLON.Vector3(0, -9.81, 0);
@@ -115,6 +120,7 @@
             shadowGenerator = new BABYLON.ShadowGenerator(1024, directionalLight);
            
             shadowGenerator.useExponentialShadowMap = true;
+             shadowGenerator.usePercentageCloserFiltering = true;
 
             //shadowGenerator2 = new BABYLON.ShadowGenerator(1024, spotLight);
             
@@ -141,12 +147,13 @@
             
             )
             // The first parameter can be used to specify which mesh to import. Here we import all meshes
-            BABYLON.SceneLoader.ImportMesh("", "scenes/", "OilRig008.babylon", scene, function (newMeshes) {
+            BABYLON.SceneLoader.ImportMesh("", "scenes/", "OilRig009.babylon", scene, function (newMeshes) {
                 // Set the target of the camera to the first imported mesh
                 console.log(newMeshes);
                 //camera.target = newMeshes[0];
                 camera.target = scene.getMeshByName("Line02");
                 var rlsPump = scene.getMeshByName("Group03");
+                rlsSound.attachToMesh(rlsPump);
                 var material = new BABYLON.StandardMaterial("material1.scene",scene);
                 material.diffuseColor = new BABYLON.Color3(1,0,1);
                // material.wireframe = true;
@@ -165,9 +172,39 @@
                 groundMaterial.diffuseTexture = new BABYLON.Texture("textures/ground.jpg", scene);
                 groundMaterial.diffuseTexture.uScale = 6;
                 groundMaterial.diffuseTexture.vScale = 6;
-                
+               // groundMaterial.bumpTexture = new BABYLON.Texture("textures/heightmap.jpg", scene);
                 groundMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
                 ground.material = groundMaterial;
+
+
+                var terrainMaterial = new BABYLON.TerrainMaterial("terrainMaterial", scene);
+                terrainMaterial.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+                terrainMaterial.specularPower = 64;
+                
+                // Set the mix texture (represents the RGB values)
+                terrainMaterial.mixTexture = new BABYLON.Texture("textures/mixMap.png", scene);
+                
+                // Diffuse textures following the RGB values of the mix map
+                // diffuseTexture1: Red
+                // diffuseTexture2: Green
+                // diffuseTexture3: Blue
+                terrainMaterial.diffuseTexture1 = new BABYLON.Texture("textures/floor.png", scene);
+                terrainMaterial.diffuseTexture2 = new BABYLON.Texture("textures/rock.png", scene);
+                terrainMaterial.diffuseTexture3 = new BABYLON.Texture("textures/grass.png", scene);
+                
+                // Bump textures according to the previously set diffuse textures
+                terrainMaterial.bumpTexture1 = new BABYLON.Texture("textures/floor_bump.png", scene);
+                terrainMaterial.bumpTexture2 = new BABYLON.Texture("textures/rockn.png", scene);
+                terrainMaterial.bumpTexture3 = new BABYLON.Texture("textures/grassn.png", scene);
+            
+                // Rescale textures according to the terrain
+                terrainMaterial.diffuseTexture1.uScale = terrainMaterial.diffuseTexture1.vScale = 10;
+                terrainMaterial.diffuseTexture2.uScale = terrainMaterial.diffuseTexture2.vScale = 10;
+                terrainMaterial.diffuseTexture3.uScale = terrainMaterial.diffuseTexture3.vScale = 10;
+               // ground.material = terrainMaterial;
+
+
+                //ground.applyDisplacementMap("textures/Heightmap_of_Trencrom_Hill.png",0,1);
                  ground.receiveShadows = true;
             });
         
@@ -180,7 +217,9 @@
         }
 
         var createSky = function () {
-            var skybox = BABYLON.Mesh.CreateBox("skyBox", 100.0, scene);
+            skybox = BABYLON.Mesh.CreateBox("skyBox", 100.0, scene);
+            //skyboxMaterial = new BABYLON.SkyMaterial("skyMaterial", scene);
+           // skyboxMaterial.backFaceCulling = false;
             var skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
             skyboxMaterial.backFaceCulling = false;
             skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("textures/skybox", scene);
@@ -189,7 +228,41 @@
             skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
             skyboxMaterial.disableLighting = true;
             skybox.material = skyboxMaterial;
+           // skybox.material = skyboxMaterial;
         };
+
+
+
+var setSkyConfig = function (property, from, to) {
+		var keys = [
+            { frame: 0, value: from },
+			{ frame: 100, value: to }
+        ];
+		
+		var animation = new BABYLON.Animation("animation", property, 100, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+		animation.setKeys(keys);
+		
+		scene.stopAnimation(skybox);
+		scene.beginDirectAnimation(skybox, [animation], 0, 100, false, 1);
+	};
+	
+	window.addEventListener("keydown", function (evt) {
+		switch (evt.keyCode) {
+			case 49: setSkyConfig("material.inclination", skyboxMaterial.inclination, 0); break; // 1
+			case 50: setSkyConfig("material.inclination", skyboxMaterial.inclination, -0.5); break; // 2
+
+			case 51: setSkyConfig("material.luminance", skyboxMaterial.luminance, 0.1); break; // 3
+			case 52: setSkyConfig("material.luminance", skyboxMaterial.luminance, 1.0); break; // 4
+			
+			case 53: setSkyConfig("material.turbidity", skyboxMaterial.turbidity, 40); break; // 5
+			case 54: setSkyConfig("material.turbidity", skyboxMaterial.turbidity, 5); break; // 6
+			
+			default: break;
+		}
+    });
+	
+	
+
 
         var createGround = function () {
             var ground = BABYLON.Mesh.CreateGround("ground1", 12, 36, 2, scene);
@@ -200,9 +273,48 @@
             groundMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
             ground.material = groundMaterial;
         };
+
+        var createSound = function(){
+            rlsSound = new BABYLON.Sound("rls", "sounds/rls.mp3", scene, null, { loop: true, autoplay: true });
+            rlsSound.setDirectionalCone(90, 180, 0.2);
+            rlsSound.setLocalDirectionToMesh(new BABYLON.Vector3(1, 0, 0));
+           // violons11.attachToMesh(box);
+        }
+
+         var createButtons = function(){
+             // Create the 3D UI manager
+                var manager = new BABYLON.GUI.GUI3DManager(scene);
+                // Create a horizontal stack panel
+                var panel = new BABYLON.GUI.StackPanel3D();
+                panel.margin = 0.02;            
+                manager.addControl(panel);
+                panel.position.z = -1.5;
+                // Let's add some buttons!
+                var addButton = function(text) {
+                    var button = new BABYLON.GUI.Button3D("orientation");
+                    panel.addControl(button);
+                    button.onPointerUpObservable.add(function(){
+                        panel.isVertical = !panel.isVertical;
+                    });   
+                    
+                    var text1 = new BABYLON.GUI.TextBlock();
+                    text1.text = text;
+                    text1.color = "white";
+                    text1.fontSize = 24;
+                    button.content = text1;  
+                }
+                addButton("Forward");
+                addButton("Backward");
+
+        }
         
         var scene = createScene()
+        createSound();
         createSky();
+        //createButtons();
+       
+        // Set to Day
+	//setSkyConfig("material.inclination", skyboxMaterial.inclination, 0);
         //createGround();
         var x= 50;
         engine.runRenderLoop(function () {
