@@ -48,20 +48,12 @@
             scene.gravity = new BABYLON.Vector3(0, -9.81, 0);
             //Adding a light
             var light = new BABYLON.PointLight("Omni", new BABYLON.Vector3(20, 20, 100), scene);
-        var VRHelper = scene.createDefaultVRExperience();
+        //var VRHelper = scene.createDefaultVRExperience();
           
             //Adding an Arc Rotate Camera
             //var camera = new BABYLON.ArcRotateCamera("Camera", 10, -10.8, 5, BABYLON.Vector3.Zero(), scene);
             //camera = new BABYLON.WebVRFreeCamera("Camera",new BABYLON.Vector3(0,1,-3), scene);
-            // camera = new BABYLON.VRDeviceOrientationFreeCamera ("DevOr_camera",new BABYLON.Vector3(-10,1,-10), scene);
-           if (navigator.getVRDisplays) {
-                camera = new BABYLON.WebVRFreeCamera("WebVRCamera", 
-                            new BABYLON.Vector3(0, 2, 0), scene);
-            }
-            else {
-                camera = new BABYLON.VRDeviceOrientationFreeCamera("WebVRFallbackCamera", 
-                            new BABYLON.Vector3(0, 2, 0), scene);
-            }
+             camera = new BABYLON.VRDeviceOrientationFreeCamera ("DevOr_camera",new BABYLON.Vector3(-10,1,-10), scene);
            
            
             // Sets the sensitivity of the camera to movement and rotation
