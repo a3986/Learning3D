@@ -44,6 +44,7 @@
     <script>
         var canvas = document.getElementById("renderCanvas");
         var engine = new BABYLON.Engine(canvas, true);
+        engine.displayLoadingUI();
   var camera;
    var shadowGenerator;
    var shadowGenerator2;
@@ -149,6 +150,7 @@
             // The first parameter can be used to specify which mesh to import. Here we import all meshes
             BABYLON.SceneLoader.ImportMesh("", "scenes/", "OilRig009.babylon", scene, function (newMeshes) {
                 // Set the target of the camera to the first imported mesh
+                engine.hideLoadingUI();
                 console.log(newMeshes);
                 //camera.target = newMeshes[0];
                 camera.target = scene.getMeshByName("Line02");
