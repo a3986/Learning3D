@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+<style type="text/css">
+  #line{
+    width: 700px;
+    margin: 20px 0;
+    height: 300px;
+    background: #eee;
+  }
+  button {
+    margin: 20px 0 0 20px;
+  }
+  path {
+  /*stroke: steelblue;*/
+  stroke-width: 1;
+  fill: none;
+}
+​</style>
+</head>
+<body>
+  <div id="line"></div>​
+  <div id="graph1" class="aGraph" style="width:600px; height:200px;"></div>
+  <script type="text/javascript" src="http://mbostock.github.com/d3/d3.js?2.5.0"></script>
+  <script type="text/javascript">
+    var w = 700;
+    var h = 300;
+
+    var svg = d3.select("#line")
+      .append("svg")
+      .attr("width", w)
+      .attr("height", h)
+      .attr("id", "visualization")
+      .attr("xmlns", "http://www.w3.org/2000/svg");
+
+    var data = d3.range(11).map(function(){return Math.random()*10})
+    var x = d3.scale.linear().domain([0, 10]).range([0, 700]);
+    var y = d3.scale.linear().domain([0, 10]).range([10, 290]);
+    var line = d3.svg.line()
+      .interpolate("cardinal")
+      .x(function(d,i) {return x(i);})
+      .y(function(d) {return y(d);})
+
+    var path = svg.append("path")
+      .attr("d", line(data))
+      .attr("stroke", "steelblue")
+      .attr("stroke-width", "2")
+      .attr("fill", "none");
+
+    var totalLength = path.node().getTotalLength();
+
+    path
+      .attr("stroke-dasharray", totalLength + " " + totalLength)
+      .attr("stroke-dashoffset", totalLength)
+      .transition()
+        .duration(2000)
+        .ease("linear")
+        .attr("stroke-dashoffset", 0);
+
+    svg.on("click", function(){
+      path      
+        .transition()
+        .duration(2000)
+        .ease("linear")
+        .attr("stroke-dashoffset", totalLength);
+    })
+    
+
+	
+	function displayGraph(id, data, width, height, interpolation, animate, updateDelay, transitionDelay) {
+
+  var margin = {
+      top: 30,
+      right: 20,
+      bottom: 30,
+      left: 30
+    },
+    width = width - margin.left - margin.right,
+    height = height - margin.top - margin.bottom;
+
+
+var svg = d3.select(id)
+  .append("svg:svg")
+  .attr("width", width + margin.left + margin.right)
+  .attr("height", height + margin.top + margin.bottom)
+var graph = svg.append('g')
+  .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+  
+  var x = d3.scale.linear().domain([0, 120]).range([0, width]); // max(x) is 100
+  var y = d3.scale.linear().domain([0, 25000]).range([height, 0]); // max(y) is 1   
+ /* var line = d3.svg.line()
+    .x(function(d, i) {
+      return x(i);
+    })
+    .y(function(d) {
+      return y(d.lr);
+    })
+    .interpolate(interpolation)*/
+
+	  var line = d3.svg.line()
+    .x(function(d, i) {
+      return x(d[0]);
+    })
+    .y(function(d) {
+      return y(d[1]);
+    })
+    .interpolate(interpolation)
+	
+	  var line2 = d3.svg.line()
+    .x(function(d, i) {
+      return x(d[0]);
+    })
+    .y(function(d) {
+      return y(d[1]);
+    })
+    .interpolate(interpolation)
+
+  var xAxis = d3.svg.axis().scale(x)
+    .orient("bottom").ticks(10);
+  var yAxis = d3.svg.axis().scale(y)
+    .orient("left").ticks(10);
+
+	//Surface Card
+  graph.append("svg:path")
+    .attr("d", line(data))
+    .attr('stroke', function(d) {
+      return "blue"
+    });
+	
+	//Existing Permissible Load Up
+	graph.append("svg:path")
+    .attr("d", line2(newData))
+    .attr('stroke', function(d) {
+      return "rgb(188,153,199)"
+    });
+	
+	//Existing Permissible Load Down
+	graph.append("svg:path")
+    .attr("d", line2(newData))
+    .attr('stroke', function(d) {
+      return "rgb(188,153,199)"
+    });
+	
+	//InBalance Permissible Load Up
+	graph.append("svg:path")
+    .attr("d", line2(newData))
+    .attr('stroke', function(d) {
+      return "rgb(237,221,70)"
+    });
+	
+	//In Balance Permissible Load Down
+	graph.append("svg:path")
+    .attr("d", line2(newData))
+    .attr('stroke', function(d) {
+      return "rgb(237,221,70)"
+    });
+	
+	
+  graph.append("g") // Add the X Axis
+    .attr('stroke', function(d) {
+      return "steelblue"
+    })
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xAxis);
+  graph.append("g") // Add the Y Axis
+    .attr('stroke', function(d) {
+      return "steelblue"
+    })
+    .attr("class", "y axis")
+    .call(yAxis);
+	
+	  graph.append("line")
+        .attr(
+        {
+            "class":"horizontalGrid",
+            "x1" : 0,
+            "x2" : width,
+            "y1" : y(20000),
+            "y2" : y(20000),
+            "fill" : "none",
+            "shape-rendering" : "crispEdges",
+            "stroke" : "black",
+            "stroke-width" : "1px",
+            "stroke-dasharray": ("3, 3")
+        });
+
+
+  function redrawWithAnimation() {
+    //x.domain(d3.extent(data, function(d,i) { return i; }));
+    /*x.domain([0, 100]); // max(x) is 100
+    y.domain([0, d3.max(data, function(d) {
+      return d.lr;
+    })]);*/
+	 x.domain([0,d3.max(data, function(d) {
+      return d[0];
+    })]);
+    y.domain([0, d3.max(data, function(d) {
+      return d[1];
+    })]);
+    graph.selectAll("path")
+      .data([data])
+      .attr("transform", "translate(" + x(1) + ")")
+      .attr("d", line)
+      .transition()
+      .ease("linear")
+      .duration(transitionDelay)
+      .attr("transform", "translate(" + x(0) + ")");
+
+  }
+
+  function redrawWithoutAnimation() {
+    // static update without animation
+	var path = graph.selectAll("path");
+    d3.select(path[0][0])
+      .data([data]) // set the new data
+      .attr("d", line); // apply the new data values
+	  
+	   //d3.select(path[0][1])
+      //.data([newData]) // set the new data
+      //.attr("d", line); // apply the new data values
+	  
+	  d3.select(path[0][1])
+      .data([permissibleLoadNewData.PermissibleLoadInBalanceUpStrokeValue]) // set the new data
+      .attr("d", line); // apply the new data values
+	  
+	  d3.select(path[0][2])
+      .data([permissibleLoadNewData.PermissibleLoadInBalanceDownStrokeValue]) // set the new data
+      .attr("d", line); // apply the new data values
+	  
+	  d3.select(path[0][3])
+      .data([permissibleLoadNewData.PermissibleLoadExistingUpStrokeValue]) // set the new data
+      .attr("d", line); // apply the new data values
+	  
+	  d3.select(path[0][4])
+      .data([permissibleLoadNewData.PermissibleLoadExistingDownStrokeValue]) // set the new data
+      .attr("d", line); // apply the new data values
+	  
+  }
+  setInterval(function() {
+    if (animate) {
+      redrawWithAnimation();
+    } else {
+      redrawWithoutAnimation();
+    }
+  }, updateDelay);
+} //displayGraph
+var data = [];
+var newData = [];
+var permissibleLoadNewData = {
+	"PermissibleLoadInBalanceUpStrokeValue":[],
+	"PermissibleLoadInBalanceDownStrokeValue":[],
+	"PermissibleLoadExistingUpStrokeValue":[],
+	"PermissibleLoadExistingDownStrokeValue":[],
+};
+
+var index=0;
+var multiplicationFactor=1;
+var surfaceCardData = [[0.07,12970],[0.15,13462],[0.3,13620],[0.45,13548],[0.6,13437],[1.05,13302],[1.5,13173],[1.96,13063],[2.42,13124],[3.15,13131],[3.91,13100],[4.66,13055],[5.42,13059],[6.42,13099],[7.46,13177],[8.5,13315],[9.55,13548],[10.81,13785],[12.09,13847],[13.38,14310],[14.66,14703],[16.09,14904],[17.55,15257],[19.01,15567],[20.46,15803],[22,15832],[23.39,15900],[24.71,15982],[26.02,16129],[27.53,16242],[29.49,16285],[30.87,16385],[32.36,16557],[34.01,16833],[35.67,17037],[37.33,17185],[38.99,17296],[40.64,17641],[42.27,17890],[43.87,18113],[45.48,18587],[47.09,19003],[48.67,19364],[50.2,19606],[51.71,19816],[53.22,20009],[54.71,20198],[56.12,20194],[57.53,20074],[58.92,19919],[60.32,19804],[61.69,19719],[62.99,19539],[64.3,19239],[65.62,18809],[66.95,18604],[68.19,18457],[69.43,18366],[70.69,18063],[71.95,17847],[73.15,17714],[74.61,17330],[75.82,17189],[77.01,16991],[78.1,16714],[79.18,16801],[80.27,16755],[81.36,16724],[82.36,16942],[83.35,16969],[84.33,17032],[85.31,17175],[86.21,17439],[87.08,17496],[87.95,17587],[88.82,17850],[89.6,17816],[90.35,18001],[91.11,18224],[91.87,18178],[92.53,18364],[93.17,18446],[93.82,18443],[94.46,18650],[95.01,18674],[95.54,18580],[96.07,18406],[96.61,18375],[97.02,18165],[97.43,17973],[97.84,17932],[98.25,17653],[98.53,17445],[98.82,17340],[99.1,17384],[99.38,17148],[99.51,17065],[99.66,17019],[99.81,16768],[99.92,16691],[99.92,16771],[99.92,16886],[99.92,16717],[99.87,16803],[99.71,16829],[99.55,16786],[99.39,17033],[99.17,17084],[98.84,17191],[98.51,17463],[98.19,17439],[97.79,17223],[97.28,16985],[96.77,16967],[96.27,16642],[95.69,16420],[95,16296],[94.32,15940],[93.64,15846],[92.89,15744],[92.03,15438],[91.17,15441],[90.32,15315],[89.42,15079],[88.39,15202],[87.49,15199],[86.64,15133],[85.8,15003],[84.84,14928],[83.67,15073],[82.65,15100],[81.67,15084],[80.51,14901],[79.21,14799],[77.91,14729],[76.61,14455],[75.32,14077],[73.94,13706],[72.54,13551],[71.15,13227],[69.76,12860],[68.33,12535],[66.87,12443],[65.4,12327],[63.94,12007],[62.5,11857],[60.99,11781],[59.5,11781],[58.01,11482],[56.53,11172],[55.03,11061],[53.52,11124],[52.02,11209],[50.52,11124],[49.02,10904],[47.52,10627],[46.01,10454],[44.51,10388],[43.01,10395],[41.54,10327],[40.06,10304],[38.59,10327],[37.09,10573],[35.63,10843],[34.2,11128],[32.75,11192],[31.29,11207],[29.82,11189],[28.41,11366],[26.98,11514],[25.54,11562],[24.11,11491],[22.76,11599],[21.41,11937],[20.05,11936],[18.69,12144],[17.41,12443],[16.16,12302],[14.91,12326],[13.66,12315],[12.5,12092],[11.4,12178],[10.3,12109],[9.2,11900],[8.21,11925],[7.3,11794],[6.4,11736],[5.49,11947],[4.7,11874],[3.92,11877],[3.08,11886],[2.3,11919],[1.86,12233],[1.43,12125],[1,12086],[0.57,12105],[0.43,12073],[0.29,12301],[0.14,12465],[0,12717]];
+
+var permissibleLoadData = {
+	"InBalanceMaxTorque": 240.48,
+	"ExistingCounterbalance": 85.91,
+	"ExistingMaxTorque": 901.38,
+	"InbalanceEffectiveCBal": 16425.49,
+	"InBalanceReducerRating": 75.15,
+	"InBalanceCounterbalance": 749.33,
+	"ReducerRating": 320000.0,
+	"ExistingReducerRating": 281.68,
+	"ExistingEffectiveCBal": 2325.84,
+	"Permissible-Load": [{
+			"PermissibleLoadInBalanceUpStrokeValue": [[6.872099989536654, 23517.760533417288], [9.463680702884872, 22434.166799786562], [12.388283843047288, 21745.363937675138], [15.611978055480089, 21308.59165570464], [19.100948064000832, 21041.46225315586], [22.821722875838866, 20893.29181892074], [26.74127619276935, 20831.578048913885], [30.827026255129457, 20835.083066108426], [35.046759822751554, 20890.082467925153], [39.36850267453418, 20988.25588097685], [43.76035754961786, 21125.490685198976], [48.1903302711168, 21301.231317298487], [52.626166084542376, 21518.182848711207], [57.03522095750228, 21782.27097739758], [61.38439632477131, 22102.816312804054], [65.64016960143216, 22492.921774638766], [69.76875508927323, 22970.113109124773], [73.73642821592065, 23557.328911278313], [77.51003730764694, 24284.44997704446], [81.0577083986405, 25190.727787273736]],
+			"PermissibleLoadExistingUpStrokeValue": [[2.8218166116509513, 18991.891229437013], [4.647204174520524, 15515.50958307536], [6.872099989536654, 13381.483952185405], [9.463680702884872, 11960.363228996152], [12.388283843047288, 10963.350399074288], [15.611978055480089, 10239.58528038683], [19.100948064000832, 9702.859655407134], [22.821722875838866, 9300.642153282532], [26.74127619276935, 8999.436585019244], [30.827026255129457, 8777.259794145057], [35.046759822751554, 8619.528851402585], [39.36850267453418, 8516.711949310724], [43.76035754961786, 8462.95645795562], [48.1903302711168, 8455.296909137312], [52.626166084542376, 8493.236048711122], [57.03522095750228, 8578.593001210149], [61.38439632477131, 8715.572347560523], [65.64016960143216, 8911.050433590073], [69.76875508927323, 9175.115116969697], [73.73642821592065, 9521.94547648596], [77.51003730764694, 9971.196555708255], [81.0577083986405, 10550.192761441891], [84.34971867875073, 11297.496845390942], [87.35947550398603, 12268.9531138484], [90.06449808973882, 13548.448214545486], [92.44727049142088, 15268.29233918955], [94.49583069452666, 17650.91578706945], [96.20398963279742, 21103.14744912803]],
+			"PermissibleLoadInBalanceDownStrokeValue": [[94.66509756117316, 315.209386895737], [92.9882417211806, 3172.7370709558422], [91.0972903036494, 5299.630633908474], [88.99697901233783, 6901.541788485985], [86.6907922075592, 8104.436501586501], [84.181222722036, 8991.16897865459], [81.47008966958948, 9619.978222943815], [78.55891885956136, 10034.441046374528], [75.44939374610415, 10269.059476111584], [72.14388639754269, 10352.4712592884], [68.6460772341913, 10309.297252927596], [64.96166849459242, 10161.173405233749], [61.09918860599119, 9927.278017511273], [57.07087188866844, 9624.537135393362], [52.89357966576801, 9267.617251707037], [48.58970509980583, 8868.767987922143], [44.18797676045777, 8437.543505166326], [39.724049232399935, 7980.400799243489], [35.24074993530757, 7500.137651449491], [30.78784889726726, 6995.0823019004765], [26.42124181306743, 6457.862476933992], [22.20149216679208, 5873.425534443159], [18.191763484520035, 5215.669288010129], [14.45527498455705, 4441.367280314132], [11.05251001533853, 3478.4804872071722], [8.038469747909133, 2201.802399121744], [5.460273565134115, 376.6347484177733]],
+			"PermissibleLoadExistingDownStrokeValue": [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
+		}
+	],
+	"pumpingunit": "{\"ID\":0,\"structureRating\":25600.0,\"recordID\":null,\"id\":0,\"RecordID\":null,\"unitid\":\"LC320-256-100\",\"unitDescription\":\"LUFKIN C320-256-100 WITH 8495B CRANKS\",\"unit_type\":\"1\",\"manufacturer\":\"LUFKIN CONVENTIONAL\",\"cbalphaseangle_or_distsprocketcenters\":0.0,\"num_crank_holes\":4,\"cbaltorque\":325000.0,\"M\":0.0,\"S\":0.0,\"K\":175.55,\"c_or_drum_diameter\":111.072,\"a_or_chain_weight\":129.0,\"p_or_drum_inertia\":132.0,\"i_or_weightbox_weight\":111.0,\"dimr1_or_trans_mech_weight\":42.0,\"dimr2_or_belting_stretch\":36.0,\"dimr3_or_belt_weight\":30.0,\"dimr4_or_sprocket_radius\":24.0,\"dimr5_or_sprocket_inertia\":0.0,\"reducer_speed_ratio\":30.16,\"crank_inertia\":163560.0,\"slow_gear_inertia\":1252.0,\"total_reducer_inertia\":40706.0,\"articulating_inertia\":254925.0,\"dbtype\":1,\"structure_unbalance\":500.0,\"reducer_rating\":320.0,\"structure_rating\":25600.0,\"official\":1,\"maximum_stroke\":100.0,\"crankid\":\"8495B CRANKS\",\"B\":0.0,\"lcb\":0.0,\"D\":0.0,\"E\":0.0,\"max_beam_weights\":0.0,\"is_estimated_inertia\":0,\"crank_rotation\":\"anti-clockwise\",\"selectedCrankHole\":1,\"tapercount\":1}"
+};
+
+
+var dataIn = [{
+    "progress": 42.3,
+    "words": 2116,
+    "lr": 0.288598,
+    "loss": 4.07032,
+    "eta": "0h0m"
+  }, {
+    "progress": 44,
+    "words": 2197,
+    "lr": 0.279892,
+    "loss": 4.06091,
+    "eta": "0h0m"
+  }, {
+    "progress": 45.7,
+    "words": 2279,
+    "lr": 0.27161,
+    "loss": 4.053332,
+    "eta": "0h0m"
+  }, {
+    "progress": 46.6,
+    "words": 2364,
+    "lr": 0.267103,
+    "loss": 4.052618,
+    "eta": "0h0m"
+  }, {
+    "progress": 49.1,
+    "words": 2449,
+    "lr": 0.254353,
+    "loss": 4.055149,
+    "eta": "0h0m"
+  }, {
+    "progress": 50.9,
+    "words": 2532,
+    "lr": 0.245493,
+    "loss": 4.057263,
+    "eta": "0h0m"
+  }, {
+    "progress": 52.7,
+    "words": 2617,
+    "lr": 0.236479,
+    "loss": 4.059458,
+    "eta": "0h0m"
+  }, {
+    "progress": 57,
+    "words": 2833,
+    "lr": 0.215139,
+    "loss": 4.056543,
+    "eta": "0h0m"
+  }, {
+    "progress": 58.8,
+    "words": 2920,
+    "lr": 0.205817,
+    "loss": 4.03259,
+    "eta": "0h0m"
+  }, {
+    "progress": 61.5,
+    "words": 3046,
+    "lr": 0.192411,
+    "loss": 3.980249,
+    "eta": "0h0m"
+  }, {
+    "progress": 64.2,
+    "words": 3175,
+    "lr": 0.178891,
+    "loss": 3.914494,
+    "eta": "0h0m"
+  }, {
+    "progress": 66,
+    "words": 3262,
+    "lr": 0.170031,
+    "loss": 3.905593,
+    "eta": "0h0m"
+  }, {
+    "progress": 67.8,
+    "words": 3345,
+    "lr": 0.161171,
+    "loss": 3.912257,
+    "eta": "0h0m"
+  },
+  {
+    "progress": 69.4,
+    "words": 3425,
+    "lr": 0.152928,
+    "loss": 3.917797,
+    "eta": "0h0m"
+  },
+  {
+    "progress": 71,
+    "words": 3499,
+    "lr": 0.145031,
+    "loss": 3.922638,
+    "eta": "0h0m"
+  }, {
+    "progress": 72.8,
+    "words": 3587,
+    "lr": 0.136055,
+    "loss": 3.927278,
+    "eta": "0h0m"
+  },
+  {
+    "progress": 75.4,
+    "words": 3714,
+    "lr": 0.123112,
+    "loss": 3.932528,
+    "eta": "0h0m"
+  }, {
+    "progress": 77.1,
+    "words": 3799,
+    "lr": 0.114638,
+    "loss": 3.919754,
+    "eta": "0h0m"
+  }, {
+    "progress": 78.9,
+    "words": 3885,
+    "lr": 0.105701,
+    "loss": 3.877759,
+    "eta": "0h0m"
+  }
+]
+// display
+displayGraph("#graph1", data, 600, 200, "basis", false, 20, 20); //linear
+
+// update data
+setInterval(function() {
+ // var v = dataIn.shift();
+ var newIndex = index%surfaceCardData.length;
+ var pIndex = index%permissibleLoadData["Permissible-Load"][0].PermissibleLoadInBalanceUpStrokeValue.length;
+ 
+ if(newIndex==0){
+	multiplicationFactor = multiplicationFactor+0.01;
+ }
+ var v = surfaceCardData[newIndex];
+ permissibleLoadNewData.PermissibleLoadInBalanceUpStrokeValue.push(permissibleLoadData["Permissible-Load"][0].PermissibleLoadInBalanceUpStrokeValue[newIndex]);
+ permissibleLoadNewData.PermissibleLoadInBalanceDownStrokeValue.push(permissibleLoadData["Permissible-Load"][0].PermissibleLoadInBalanceDownStrokeValue[newIndex]);
+ permissibleLoadNewData.PermissibleLoadExistingUpStrokeValue.push([permissibleLoadData["Permissible-Load"][0].PermissibleLoadInBalanceUpStrokeValue[pIndex][0]*0.9,permissibleLoadData["Permissible-Load"][0].PermissibleLoadInBalanceUpStrokeValue[pIndex][1]*0.8]);
+ permissibleLoadNewData.PermissibleLoadExistingDownStrokeValue.push(permissibleLoadData["Permissible-Load"][0].PermissibleLoadExistingDownStrokeValue[newIndex]);
+ //var v = surfaceCardData.shift();
+  if (v) {
+	//data.push(v);
+	data.push([v[0]*multiplicationFactor,v[1]*multiplicationFactor]);
+  }
+  index++;
+
+}, 20);
+    
+  </script>
+</body>
+</html>

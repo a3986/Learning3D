@@ -22,6 +22,12 @@
         <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
         <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
         <script type="text/javascript" src="http://mbostock.github.com/d3/d3.js?2.5.0"></script>
+        <script type="text/javascript" src="js-toast-master/toast.min.js"></script>
+        <!-- Compiled and minified CSS -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/css/materialize.min.css">
+
+        <!-- Compiled and minified JavaScript -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/js/materialize.min.js"></script>
 
         <style>
             html, body {
@@ -49,6 +55,11 @@
             #graph1{
                 position: absolute;
                 top: 0px;
+                
+            }
+            svg{
+                background: ghostwhite;
+                opacity: 0.5;
             }
              path {
             /*stroke: steelblue;*/
@@ -77,94 +88,286 @@
 var button1;
  var button;
   var panel;
+  var baseLoad = 5000;
+  var currentLoad = 5000;
+ // var image;
+  var globalObj = {
+      errorMessage: "",
+      image:null,
+      rectangle:null
+  };
+  showConfigurableOptions = function(meshName){
+    var controlName = "";
+    switch(meshName){
+        case "ChamferBo3":
+        case "ChamferBo8":
+        console.log("Show Crank Options");
+        controlName = "Crank";
+        break;
+        case "Cylinder23":
+        case "Cylinder24":
+        console.log("Show Weight Options");
+        controlName = "Weight";
+        break;
+        default:
+        break;
+    }
+      for(var i=0; i< panel.children.length; i++){
+          if(panel.children[i].name.indexOf(controlName)==-1){
+              panel.children[i].isVisible = false;
+          }
+          else{
+              panel.children[i].isVisible = true;
+          }
+      }
+      panel.isVisible = true;
+      beginOrStopAllAnimations(false);
+      clearInterval(globalObj.intervalNumber);
+      data.splice(0,data.length);
+  }
 
-  beginOrStopAllAnimations = function(beginAnimation, animationSpeed){
+  beginOrStopAllAnimations = function(beginAnimation, animationSpeed, loop){
     if(beginAnimation){
         //scene.beginAnimation(scene.getMeshByName("LowerRatingGroup001"),0,100,true);
-        scene.beginAnimation(scene.getMeshByName("TopGroup"),0,100,true,animationSpeed);
-        scene.beginAnimation(scene.getMeshByName("MiddleGroup"),0,100,true,animationSpeed);
-        scene.beginAnimation(scene.getMeshByName("LowerRatingGroup001"),0,100,true,animationSpeed);
-        scene.beginAnimation(scene.getMeshByName("Rope001"),0,100,true,animationSpeed);
-        scene.beginAnimation(scene.getMeshByName("Rope002"),0,100,true,animationSpeed);
+        scene.beginAnimation(scene.getMeshByName("TopGroup"),0,100,loop,animationSpeed);
+        scene.beginAnimation(scene.getMeshByName("MiddleGroup"),0,100,loop,animationSpeed);
+        scene.beginAnimation(scene.getMeshByName("LowerRatingGroup001"),0,100,loop,animationSpeed);
+        scene.beginAnimation(scene.getMeshByName("Rope001"),0,100,loop,animationSpeed);
+        scene.beginAnimation(scene.getMeshByName("Rope002"),0,100,loop,animationSpeed);
 
     }
     else{
         scene.stopAllAnimations();
     }
   }
+
+  handleWeightChange = function(weight){
+    var controlWeights = ["Cylinder23", "Cylinder24", "Cylinder25", "Cylinder26"];
+    var controlMesh = [];
+    for(var i=0; i<controlWeights.length; i++){
+        controlMesh.push(scene.getMeshByName(controlWeights[i]));
+    }
+    var scalingRatio = weight/baseLoad;
+    scene.registerBeforeRender(function(){
+        for(var i=0; i<controlMesh.length; i++){
+            controlMesh[i].scaling.y = scalingRatio;
+        }
+    });
+    if(weight>9000){
+        globalObj.intervalNumber = setInterval(updateGraphForPeakMalfunctionLoad,20);
+        beginOrStopAllAnimations(true, 1, false);
+        // setTimeout(function(){
+        //     beginOrStopAllAnimations(true, 1, false);
+        // },100);
+        setTimeout(function(){
+            beginOrStopAllAnimations(true, 0.5, false);
+        },200);
+         setTimeout(function(){
+            beginOrStopAllAnimations(true, 0.5, false);
+        },400);
+
+        setTimeout(function(){
+            globalObj.image.isVisible = true;
+            globalObj.errorMessage = "Drive Stopped Alert: Malfunction Peak Load State";
+            clearInterval(globalObj.intervalNumber);
+            
+        },7000);
+        // setTimeout(function(){
+        //     beginOrStopAllAnimations(false);
+        // },400)
+        // setTimeout(function(){
+        //     beginOrStopAllAnimations(true, 0.2, false);
+        // },100);
+        
+        
+    }
+    else{
+        beginOrStopAllAnimations(true, 1, true);
+        globalObj.image.isVisible = false;
+        globalObj.errorMessage = "";
+        globalObj.rectangle.isVisible = false;
+        globalObj.intervalNumber = setInterval(updateGraph,10);
+
+    }
+  }
+
+createOptions = function(){
+     var advancedTexture2 = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+     panel = new BABYLON.GUI.StackPanel();
+    advancedTexture2.addControl(panel);
+    var textblock = new BABYLON.GUI.TextBlock();
+    textblock.name = "tblkWeightOptionHeader";
+    textblock.height = "50px";
+    panel.addControl(textblock);
+
+    var slider = new BABYLON.GUI.Slider();
+    slider.name = "sldrWeight";
+    slider.minimum = 0;
+    slider.maximum = 10000;
+    slider.value = currentLoad;
+    slider.height = "20px";
+    slider.width = "200px";
+    slider.borderColor = "green";
+    slider.color= "greenyellow";
+    slider.background = "yellow";
+    slider.barOffset = "5px";
+    slider.height = "20px";
+    slider.width = "200px";
+    slider.thumbWidth = "5px";
+    slider.isThumbCircle = true;
+    slider.isThumbClamped  = false;
+    slider.onValueChangedObservable.add(function(value) {
+        textblock.text = "Current Load: " + parseInt(value) + " lbs";
+    });
+    panel.addControl(slider);
+
+    var btnUpdateWeight = BABYLON.GUI.Button.CreateSimpleButton("btnUpdateWeight", "Update Weight");
+    btnUpdateWeight.width = "150px"
+    btnUpdateWeight.height = "20px";
+    btnUpdateWeight.color = "black";
+    btnUpdateWeight.cornerRadius = 5;
+    btnUpdateWeight.background = "greenyellow";
+    btnUpdateWeight.onPointerUpObservable.add(function() {
+        panel.isVisible = false;
+        handleWeightChange(slider.value);
+        //alert(slider.value);
+        
+    });
+     panel.addControl(btnUpdateWeight);
+
+    var textblock2 = new BABYLON.GUI.TextBlock();
+    textblock2.name = "tblkCrankOptionHeader";
+    textblock2.height = "50px";
+    panel.addControl(textblock);
+
+    var addRadio = function(text,name, parent) {
+        var button = new BABYLON.GUI.RadioButton();
+       
+        button.width = "20px";
+        button.height = "20px";
+        button.color = "lime";
+        button.background = "yellow";
+        button.onIsCheckedChangedObservable.add(function(state) {
+            if (state) {
+                textblock2.text = "You selected " + text;
+            }
+        });
+        var header = BABYLON.GUI.Control.AddHeader(button, text, "130px", { isHorizontal: true, controlFirst: true });
+        header.height = "30px";        
+        parent.addControl(header);  
+        panel.children[panel.children.length-1].name = name;  
+    }
+    addRadio("Crank Hole 1","rbCrankOption1", panel);
+    addRadio("Crank Hole 2","rbCrankOption2", panel);
+    addRadio("Crank Hole 3","rbCrankOption3", panel);
+    addRadio("Crank Hole 4","rbCrankOption4", panel);
+    var btnUpdateCrank = BABYLON.GUI.Button.CreateSimpleButton("btnUpdateCrank", "Update Crank");
+    btnUpdateCrank.width = "150px"
+    btnUpdateCrank.height = "20px";
+    btnUpdateCrank.color = "black";
+    btnUpdateCrank.cornerRadius = 5;
+    btnUpdateCrank.background = "greenyellow";
+    btnUpdateCrank.onPointerUpObservable.add(function() {
+        panel.isVisible = false;     
+    });
+     panel.addControl(btnUpdateCrank);
+    panel.isVisible = false;
+}
 createGUIControls = function(){
     var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");   
-    var advancedTexture2 = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");        
-    button1 = BABYLON.GUI.Button.CreateSimpleButton("but1", "Surface Card");
+       createOptions();
+    button1 = BABYLON.GUI.Button.CreateSimpleButton("btnShowSurfaceCard", "Surface Card");
     button1.width = "150px"
     button1.height = "20px";
-    button1.color = "white";
+    button1.color = "black";
     button1.cornerRadius = 5;
-    button1.background = "grey";
+    button1.background = "greenyellow";
     button1.linkOffsetY = -200;
     button1.linkOffsetX = -100;
     button1.onPointerUpObservable.add(function() {
         //alert("you did it!");
         displayGraph("#graph1", data, 400, 150, "basis", false, 10, 10); //linear
-        setInterval(updateGraph,10);
-    });   
+        globalObj.intervalNumber = setInterval(updateGraph,10);
+        beginOrStopAllAnimations(true,1,true);
+    });
+    var rectangle = new BABYLON.GUI.Rectangle("rect");
+    globalObj.rectangle = rectangle;
+    rectangle.background = "black";
+    rectangle.color = "yellow";
+    rectangle.width = "300px";
+    rectangle.height = "50px";
+    var text1 = new BABYLON.GUI.TextBlock("text1");
+    text1.fontFamily = "Helvetica";
+    text1.textWrapping = true;
+    text1.text = "Hover in this long text to apply spacing. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.";
+    text1.color = "white";
+    text1.fontSize = "14px";
+    rectangle.addControl(text1);
+    rectangle.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    rectangle.isVisible=false;
+     var image = new BABYLON.GUI.Image("caution1", "textures/caution2.png");
+     globalObj.image = image;
+    image.width = "30px";
+    image.height = "25px";
+    image.cellId = 0;
+    image.cellHeight = 30;
+    image.cellWidth =30;
+    image.isVisible = false;
+    image.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+      image.onPointerUpObservable.add(function() {
+        //alert("you did it!");
+        globalObj.rectangle.children[0].text = globalObj.errorMessage;
+        globalObj.rectangle.isVisible = true;
+       // var toastHTML = '<span>I am toast content</span><button class="btn-flat toast-action">Undo</button>';
+       // M.toast({html: toastHTML});
+
+       
+        // var options = {
+        //     style: {
+        //         main: {
+        //             background: "pink",
+        //             color: "black"
+        //         }
+        //     }
+        // };
+
+        // iqwerty.toast.Toast('Hello!', options);
+        
+    });
+    // image.sourceWidth = 64;
+     //   image.sourceHeight = 64;
+     setInterval(() => {        
+             if (image.cellId < 1) image.cellId++;
+             else image.cellId = 0;
+     }, 200);
+    
+    advancedTexture.addControl(image);
     advancedTexture.addControl(button1);
+     advancedTexture.addControl(rectangle);
    // setTimeout(function(){
         button1.linkWithMesh(scene.getMeshByName("Group01"));
    // })        
 
-  panel = new BABYLON.GUI.StackPanel();
-    advancedTexture2.addControl(panel);
 
-    var textblock = new BABYLON.GUI.TextBlock();
-    textblock.height = "50px";
-    panel.addControl(textblock);   
-
-    var addRadio = function(text, parent) {
-
-        var button = new BABYLON.GUI.RadioButton();
-        button.width = "20px";
-        button.height = "20px";
-        button.color = "white";
-        button.background = "green";     
-
-        button.onIsCheckedChangedObservable.add(function(state) {
-            if (state) {
-                textblock.text = "You selected " + text;
-            }
-        }); 
-
-        var header = BABYLON.GUI.Control.AddHeader(button, text, "130px", { isHorizontal: true, controlFirst: true });
-        header.height = "30px";
-
-        parent.addControl(header);    
-    }
-
-
-    addRadio("Crank Hole 1", panel);
-    addRadio("Crank Hole 2", panel);
-    addRadio("Crank Hole 3", panel);
-    addRadio("Crank Hole 4", panel);
-    
-
+  
     //Anchor Buttons
 
-      var anchor = new BABYLON.AbstractMesh("anchor", scene);
-       var manager = new BABYLON.GUI.GUI3DManager(scene);        
-        // Let's add a button
-        button = new BABYLON.GUI.HolographicButton("down");
-        manager.addControl(button);
-        button.linkToTransformNode(anchor);
-        button.position.z = -1.5;
+    //   var anchor = new BABYLON.AbstractMesh("anchor", scene);
+    //    var manager = new BABYLON.GUI.GUI3DManager(scene);        
+    //     // Let's add a button
+    //     button = new BABYLON.GUI.HolographicButton("down");
+    //     manager.addControl(button);
+    //     button.linkToTransformNode(anchor);
+    //     button.position.z = -1.5;
 
-        button.text = "Show Surface Card";
-        button.imageUrl = "./textures/down.png"; 
-        button.onPointerUpObservable.add(function(){
-               // donut.rotation.x -= 0.05;
-            });
-            button.position.y = 7.5;
-            button.scaling  = {x:1,y:0.5, z:0.2};
-            button.frontMaterial.albedoColor = {r:1, g:0, b:0};
+    //     button.text = "Show Surface Card";
+    //     button.imageUrl = "./textures/down.png"; 
+    //     button.onPointerUpObservable.add(function(){
+    //            // donut.rotation.x -= 0.05;
+    //         });
+    //         button.position.y = 7.5;
+    //         button.scaling  = {x:1,y:0.5, z:0.2};
+    //         button.frontMaterial.albedoColor = {r:1, g:0, b:0};
 }
 
  function vecToLocal(vector, mesh){
@@ -297,6 +500,7 @@ createGUIControls = function(){
             BABYLON.SceneLoader.ImportMesh("", "scenes/", "OilRig012WIP.babylon", scene, function (newMeshes) {
                 var pickableMeshNames= ["Cylinder25","Cylinder26","ChamferBo1","ChamferBo4","Cylinder24","Cylinder23","ChamferBo3","ChamferBo2","ChamferBo006","ChamferBo007","ChamferBo008","ChamferBo009","Cylinder028","Cylinder029","Cylinder030","Cylinder031","ChamferBo010","ChamferBo011","ChamferBo012","ChamferBo013","Cylinder032","Cylinder033","Cylinder034","Cylinder035","ChamferBo014","ChamferBo015","ChamferBo016","ChamferBo017","Cylinder036","Cylinder037","Cylinder038","Cylinder039"];
                 meshesForAnimation = newMeshes;
+                beginOrStopAllAnimations(false);
                  createGUIControls();
                 var pickableMesh = [];
                 for(var i=0; i < newMeshes.length; i++){
@@ -330,6 +534,7 @@ createGUIControls = function(){
                         mesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, function(ev){
                             //mesh.material.emissiveColor = BABYLON.Color3.Black();
                             console.log("DownClick ", mesh.name);
+                            showConfigurableOptions(mesh.name);
                              //mesh.scalingDeterminant = 1;
                             // mesh.position.y-=10;
                         }));
@@ -575,7 +780,7 @@ var graph = svg.append('g')
   graph.append("svg:path")
     .attr("d", line(data))
     .attr('stroke', function(d) {
-      return "blue"
+      return "darkgreen"
     });
 	
 	//Existing Permissible Load Up
@@ -609,14 +814,14 @@ var graph = svg.append('g')
 	
   graph.append("g") // Add the X Axis
     .attr('stroke', function(d) {
-      return "black"
+      return "darkolivegreen"
     })
     .attr("class", "x axis")
     .attr("transform", "translate(0," + height + ")")
     .call(xAxis);
   graph.append("g") // Add the Y Axis
     .attr('stroke', function(d) {
-      return "black"
+      return "darkolivegreen"
     })
     .attr("class", "y axis")
     .call(yAxis);
@@ -707,27 +912,9 @@ var permissibleLoadNewData = {
 
 var index=0;
 var multiplicationFactor=1;
-var surfaceCardData = [[0.07,12970],[0.15,13462],[0.3,13620],[0.45,13548],[0.6,13437],[1.05,13302],[1.5,13173],[1.96,13063],[2.42,13124],[3.15,13131],[3.91,13100],[4.66,13055],[5.42,13059],[6.42,13099],[7.46,13177],[8.5,13315],[9.55,13548],[10.81,13785],[12.09,13847],[13.38,14310],[14.66,14703],[16.09,14904],[17.55,15257],[19.01,15567],[20.46,15803],[22,15832],[23.39,15900],[24.71,15982],[26.02,16129],[27.53,16242],[29.49,16285],[30.87,16385],[32.36,16557],[34.01,16833],[35.67,17037],[37.33,17185],[38.99,17296],[40.64,17641],[42.27,17890],[43.87,18113],[45.48,18587],[47.09,19003],[48.67,19364],[50.2,19606],[51.71,19816],[53.22,20009],[54.71,20198],[56.12,20194],[57.53,20074],[58.92,19919],[60.32,19804],[61.69,19719],[62.99,19539],[64.3,19239],[65.62,18809],[66.95,18604],[68.19,18457],[69.43,18366],[70.69,18063],[71.95,17847],[73.15,17714],[74.61,17330],[75.82,17189],[77.01,16991],[78.1,16714],[79.18,16801],[80.27,16755],[81.36,16724],[82.36,16942],[83.35,16969],[84.33,17032],[85.31,17175],[86.21,17439],[87.08,17496],[87.95,17587],[88.82,17850],[89.6,17816],[90.35,18001],[91.11,18224],[91.87,18178],[92.53,18364],[93.17,18446],[93.82,18443],[94.46,18650],[95.01,18674],[95.54,18580],[96.07,18406],[96.61,18375],[97.02,18165],[97.43,17973],[97.84,17932],[98.25,17653],[98.53,17445],[98.82,17340],[99.1,17384],[99.38,17148],[99.51,17065],[99.66,17019],[99.81,16768],[99.92,16691],[99.92,16771],[99.92,16886],[99.92,16717],[99.87,16803],[99.71,16829],[99.55,16786],[99.39,17033],[99.17,17084],[98.84,17191],[98.51,17463],[98.19,17439],[97.79,17223],[97.28,16985],[96.77,16967],[96.27,16642],[95.69,16420],[95,16296],[94.32,15940],[93.64,15846],[92.89,15744],[92.03,15438],[91.17,15441],[90.32,15315],[89.42,15079],[88.39,15202],[87.49,15199],[86.64,15133],[85.8,15003],[84.84,14928],[83.67,15073],[82.65,15100],[81.67,15084],[80.51,14901],[79.21,14799],[77.91,14729],[76.61,14455],[75.32,14077],[73.94,13706],[72.54,13551],[71.15,13227],[69.76,12860],[68.33,12535],[66.87,12443],[65.4,12327],[63.94,12007],[62.5,11857],[60.99,11781],[59.5,11781],[58.01,11482],[56.53,11172],[55.03,11061],[53.52,11124],[52.02,11209],[50.52,11124],[49.02,10904],[47.52,10627],[46.01,10454],[44.51,10388],[43.01,10395],[41.54,10327],[40.06,10304],[38.59,10327],[37.09,10573],[35.63,10843],[34.2,11128],[32.75,11192],[31.29,11207],[29.82,11189],[28.41,11366],[26.98,11514],[25.54,11562],[24.11,11491],[22.76,11599],[21.41,11937],[20.05,11936],[18.69,12144],[17.41,12443],[16.16,12302],[14.91,12326],[13.66,12315],[12.5,12092],[11.4,12178],[10.3,12109],[9.2,11900],[8.21,11925],[7.3,11794],[6.4,11736],[5.49,11947],[4.7,11874],[3.92,11877],[3.08,11886],[2.3,11919],[1.86,12233],[1.43,12125],[1,12086],[0.57,12105],[0.43,12073],[0.29,12301],[0.14,12465],[0,12717]];
+var surfaceCardData = [[0.08,15354.0],[0.16,15300.0],[0.32,15196.0],[0.48,14956.0],[0.64,14564.0],[1.07,14257.0],[1.54,14296.0],[2.01,14432.0],[2.48,14553.0],[3.17,14574.0],[3.94,14843.0],[4.69,15229.0],[5.46,15669.0],[6.38,16096.0],[7.41,16332.0],[8.43,16603.0],[9.46,16873.0],[10.59,17139.0],[11.85,17466.0],[13.11,17730.0],[14.36,17994.0],[15.68,18195.0],[17.12,18134.0],[18.59,18085.0],[20.04,18077.0],[21.54,18070.0],[23.17,18003.0],[24.8,17949.0],[26.43,17988.0],[28.06,18048.0],[29.82,18085.0],[31.59,18270.0],[33.34,18612.0],[35.12,19096.0],[36.96,19686.0],[38.82,20241.0],[40.68,20716.0],[42.53,21216.0],[44.42,21752.0],[46.33,22287.0],[48.24,22559.0],[50.15,22821.0],[52.07,23059.0],[54.01,23144.0],[55.94,23091.0],[57.87,22905.0],[59.81,22650.0],[61.75,22473.0],[63.7,22366.0],[65.65,22239.0],[67.6,22102.0],[69.51,21994.0],[71.44,21783.0],[73.37,21554.0],[75.3,21368.0],[77.19,21291.0],[79.05,21072.0],[80.92,20752.0],[82.8,20326.0],[84.62,19808.0],[86.4,19364.0],[88.19,18906.0],[89.98,18406.0],[91.72,17872.0],[93.39,17372.0],[95.06,17005.0],[96.73,16605.0],[98.37,16177.0],[99.9,15771.0],[101.43,15623.0],[102.96,15679.0],[104.49,15832.0],[105.79,16001.0],[107.14,16091.0],[108.49,16225.0],[109.81,16308.0],[110.96,16378.0],[112.11,16484.0],[113.26,16657.0],[114.41,16794.0],[115.33,16837.0],[116.27,16828.0],[117.2,16900.0],[118.14,17101.0],[118.86,17349.0],[119.58,17582.0],[120.3,17773.0],[121.01,18037.0],[121.53,18401.0],[122.02,18711.0],[122.52,18944.0],[123.01,19142.0],[123.33,19420.0],[123.6,19635.0],[123.88,19779.0],[124.15,19837.0],[124.27,19716.0],[124.33,19571.0],[124.39,19423.0],[124.45,19277.0],[124.38,19129.0],[124.23,18929.0],[124.09,18726.0],[123.94,18551.0],[123.69,18423.0],[123.34,18306.0],[122.99,18231.0],[122.64,18174.0],[122.22,18116.0],[121.68,18029.0],[121.15,17875.0],[120.61,17762.0],[120.07,17647.0],[119.3,17478.0],[118.58,17215.0],[117.87,16973.0],[117.13,16766.0],[116.24,16592.0],[115.35,16415.0],[114.46,16214.0],[113.57,16100.0],[112.52,16066.0],[111.48,16066.0],[110.43,16199.0],[109.38,16317.0],[108.2,16397.0],[106.99,16427.0],[105.78,16506.0],[104.57,16598.0],[103.27,16692.0],[101.91,16789.0],[100.56,16908.0],[99.2,16995.0],[97.77,17067.0],[96.27,17155.0],[94.77,17338.0],[93.27,17485.0],[91.73,17578.0],[90.1,17648.0],[88.46,17751.0],[86.83,17958.0],[85.17,18184.0],[83.42,18386.0],[81.66,18536.0],[79.9,18672.0],[78.14,16786.0],[76.26,14043.0],[74.41,11244.0],[72.57,9521.0],[70.76,9697.0],[68.89,10287.0],[67.01,10863.0],[65.14,10894.0],[63.25,10736.0],[61.33,10508.0],[59.39,10375.0],[57.46,10706.0],[55.53,11014.0],[53.58,11224.0],[51.61,11299.0],[49.64,11179.0],[47.67,11073.0],[45.71,10923.0],[43.78,10728.0],[41.85,10493.0],[39.91,10347.0],[37.97,10351.0],[36.09,10449.0],[34.23,10561.0],[32.37,9945.0],[30.49,9726.0],[28.72,10017.0],[26.98,10854.0],[25.23,11729.0],[23.48,13108.0],[21.82,14142.0],[20.21,14485.0],[18.62,14476.0],[17.02,14589.0],[15.52,14886.0],[14.14,15278.0],[12.76,15615.0],[11.38,15562.0],[10.1,15453.0],[9.0,15365.0],[7.89,15344.0],[6.78,15400.0],[5.76,15666.0],[4.94,15854.0],[4.14,15954.0],[3.33,16028.0],[2.58,16121.0],[2.08,16185.0],[1.6,16226.0],[1.11,16334.0],[0.62,16890.0],[0.49,16984.0],[0.32,17039.0],[0.16,17012.0],[0.08,15354.0]];
 
-var permissibleLoadData = {
-	"InBalanceMaxTorque": 240.48,
-	"ExistingCounterbalance": 85.91,
-	"ExistingMaxTorque": 901.38,
-	"InbalanceEffectiveCBal": 16425.49,
-	"InBalanceReducerRating": 75.15,
-	"InBalanceCounterbalance": 749.33,
-	"ReducerRating": 320000.0,
-	"ExistingReducerRating": 281.68,
-	"ExistingEffectiveCBal": 2325.84,
-	"Permissible-Load": [{
-			"PermissibleLoadInBalanceUpStrokeValue": [[6.872099989536654, 23517.760533417288], [9.463680702884872, 22434.166799786562], [12.388283843047288, 21745.363937675138], [15.611978055480089, 21308.59165570464], [19.100948064000832, 21041.46225315586], [22.821722875838866, 20893.29181892074], [26.74127619276935, 20831.578048913885], [30.827026255129457, 20835.083066108426], [35.046759822751554, 20890.082467925153], [39.36850267453418, 20988.25588097685], [43.76035754961786, 21125.490685198976], [48.1903302711168, 21301.231317298487], [52.626166084542376, 21518.182848711207], [57.03522095750228, 21782.27097739758], [61.38439632477131, 22102.816312804054], [65.64016960143216, 22492.921774638766], [69.76875508927323, 22970.113109124773], [73.73642821592065, 23557.328911278313], [77.51003730764694, 24284.44997704446], [81.0577083986405, 25190.727787273736]],
-			"PermissibleLoadExistingUpStrokeValue": [[2.8218166116509513, 18991.891229437013], [4.647204174520524, 15515.50958307536], [6.872099989536654, 13381.483952185405], [9.463680702884872, 11960.363228996152], [12.388283843047288, 10963.350399074288], [15.611978055480089, 10239.58528038683], [19.100948064000832, 9702.859655407134], [22.821722875838866, 9300.642153282532], [26.74127619276935, 8999.436585019244], [30.827026255129457, 8777.259794145057], [35.046759822751554, 8619.528851402585], [39.36850267453418, 8516.711949310724], [43.76035754961786, 8462.95645795562], [48.1903302711168, 8455.296909137312], [52.626166084542376, 8493.236048711122], [57.03522095750228, 8578.593001210149], [61.38439632477131, 8715.572347560523], [65.64016960143216, 8911.050433590073], [69.76875508927323, 9175.115116969697], [73.73642821592065, 9521.94547648596], [77.51003730764694, 9971.196555708255], [81.0577083986405, 10550.192761441891], [84.34971867875073, 11297.496845390942], [87.35947550398603, 12268.9531138484], [90.06449808973882, 13548.448214545486], [92.44727049142088, 15268.29233918955], [94.49583069452666, 17650.91578706945], [96.20398963279742, 21103.14744912803]],
-			"PermissibleLoadInBalanceDownStrokeValue": [[94.66509756117316, 315.209386895737], [92.9882417211806, 3172.7370709558422], [91.0972903036494, 5299.630633908474], [88.99697901233783, 6901.541788485985], [86.6907922075592, 8104.436501586501], [84.181222722036, 8991.16897865459], [81.47008966958948, 9619.978222943815], [78.55891885956136, 10034.441046374528], [75.44939374610415, 10269.059476111584], [72.14388639754269, 10352.4712592884], [68.6460772341913, 10309.297252927596], [64.96166849459242, 10161.173405233749], [61.09918860599119, 9927.278017511273], [57.07087188866844, 9624.537135393362], [52.89357966576801, 9267.617251707037], [48.58970509980583, 8868.767987922143], [44.18797676045777, 8437.543505166326], [39.724049232399935, 7980.400799243489], [35.24074993530757, 7500.137651449491], [30.78784889726726, 6995.0823019004765], [26.42124181306743, 6457.862476933992], [22.20149216679208, 5873.425534443159], [18.191763484520035, 5215.669288010129], [14.45527498455705, 4441.367280314132], [11.05251001533853, 3478.4804872071722], [8.038469747909133, 2201.802399121744], [5.460273565134115, 376.6347484177733]],
-			"PermissibleLoadExistingDownStrokeValue": [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
-		}
-	],
-	"pumpingunit": "{\"ID\":0,\"structureRating\":25600.0,\"recordID\":null,\"id\":0,\"RecordID\":null,\"unitid\":\"LC320-256-100\",\"unitDescription\":\"LUFKIN C320-256-100 WITH 8495B CRANKS\",\"unit_type\":\"1\",\"manufacturer\":\"LUFKIN CONVENTIONAL\",\"cbalphaseangle_or_distsprocketcenters\":0.0,\"num_crank_holes\":4,\"cbaltorque\":325000.0,\"M\":0.0,\"S\":0.0,\"K\":175.55,\"c_or_drum_diameter\":111.072,\"a_or_chain_weight\":129.0,\"p_or_drum_inertia\":132.0,\"i_or_weightbox_weight\":111.0,\"dimr1_or_trans_mech_weight\":42.0,\"dimr2_or_belting_stretch\":36.0,\"dimr3_or_belt_weight\":30.0,\"dimr4_or_sprocket_radius\":24.0,\"dimr5_or_sprocket_inertia\":0.0,\"reducer_speed_ratio\":30.16,\"crank_inertia\":163560.0,\"slow_gear_inertia\":1252.0,\"total_reducer_inertia\":40706.0,\"articulating_inertia\":254925.0,\"dbtype\":1,\"structure_unbalance\":500.0,\"reducer_rating\":320.0,\"structure_rating\":25600.0,\"official\":1,\"maximum_stroke\":100.0,\"crankid\":\"8495B CRANKS\",\"B\":0.0,\"lcb\":0.0,\"D\":0.0,\"E\":0.0,\"max_beam_weights\":0.0,\"is_estimated_inertia\":0,\"crank_rotation\":\"anti-clockwise\",\"selectedCrankHole\":1,\"tapercount\":1}"
-};
+var permissibleLoadData = {"InBalanceMaxTorque":434.86,"ExistingCounterbalance":780.49,"ExistingMaxTorque":784.15,"InbalanceEffectiveCBal":17372.46,"InBalanceReducerRating":67.95,"InBalanceCounterbalance":1142.1,"ReducerRating":640000.0,"ExistingReducerRating":122.52,"ExistingEffectiveCBal":11397.12,"Permissible-Load":[{"PermissibleLoadInBalanceUpStrokeValue":[[18.274594880430268,28010.406910338726],[22.503946633791664,27286.09681372235],[27.037493923003012,26797.40218342186],[31.833457830977945,26484.270989848043],[36.849777300949505,26307.268904518598],[42.04427563532251,26240.232924931606],[47.374773068970526,26266.079548274287],[52.79916623772245,26374.335837013503],[58.27549520044825,26559.671333156137],[63.762018181271095,26821.05154354844],[69.21731327855093,27161.31221251673],[74.60042477245452,27587.05596811797],[79.87106895670223,28108.841496790737],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0]],"PermissibleLoadExistingUpStrokeValue":[[10.89264289011839,25810.43645376476],[14.390694449159941,24169.55283417451],[18.274594880430268,23018.64851012385],[22.503946633791664,22201.445133159425],[27.037493923003012,21623.064470911046],[31.833457830977945,21223.088242999147],[36.849777300949505,20961.839687450574],[42.04427563532251,20812.922387450017],[47.374773068970526,20758.958992810163],[52.79916623772245,20789.078336021805],[58.27549520044825,20897.419025723855],[63.762018181271095,21082.265139952608],[69.21731327855093,21345.610492674237],[74.60042477245452,21693.051398419546],[79.87106895670223,22133.976676104718],[84.9899101715932,22682.08179664533],[89.91891154286658,23356.299695814043],[94.62175669468151,24182.334535330836],[99.06432870645328,25195.139727822156],[103.21522173186554,26442.961565967616],[107.04625055574209,27994.1103962593],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0]],"PermissibleLoadInBalanceDownStrokeValue":[[111.42205833589603,1315.0944847923747],[108.35676918596852,3054.0176604523085],[105.00248461534198,4363.82539089914],[101.36848555707668,5340.1147926920985],[97.46475947575136,6049.717060535336],[93.30245696650465,6541.518583414898],[88.89441444592498,6852.711523777927],[84.25573302269649,7012.508516409242],[79.40439813149099,7044.376522665412],[74.3619169434543,6967.364480257536],[69.15394114122593,6796.848814676034],[63.810832034363685,6544.881390558295],[58.368114464208595,6220.239868725888],[52.86675745866604,5828.221591617767],[47.35321570500041,5370.171376092145],[41.87916945291219,4842.676416697776],[36.50091394248566,4236.279941541168],[31.27837416175261,3533.42884728473],[26.273755828878762,2705.117866173785],[21.549885351390305,1705.1872600582042],[17.16833383465399,460.14286213721834],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0]],"PermissibleLoadExistingDownStrokeValue":[[88.89441444592498,301.1922436456575],[84.25573302269649,593.2055791763496],[79.40439813149099,767.3378922023053],[74.3619169434543,839.3826988126575],[69.15394114122593,821.5094333081606],[63.810832034363685,722.6603179457952],[58.368114464208595,548.649233007684],[52.86675745866604,301.9991387066291],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0]]}],"pumpingunit":"{\"ID\":0,\"structureRating\":36500.0,\"recordID\":null,\"id\":0,\"RecordID\":null,\"unitid\":\"LC640-365-168\",\"unitDescription\":\"LUFKIN C640-365-168 WITH 94110B CRANKS\",\"unit_type\":\"1\",\"manufacturer\":\"LUFKIN CONVENTIONAL\",\"cbalphaseangle_or_distsprocketcenters\":0.0,\"num_crank_holes\":4,\"cbaltorque\":465000.0,\"M\":0.0,\"S\":0.0,\"K\":192.88,\"c_or_drum_diameter\":120.26,\"a_or_chain_weight\":210.0,\"p_or_drum_inertia\":148.5,\"i_or_weightbox_weight\":120.0,\"dimr1_or_trans_mech_weight\":47.0,\"dimr2_or_belting_stretch\":41.0,\"dimr3_or_belt_weight\":35.0,\"dimr4_or_sprocket_radius\":29.0,\"dimr5_or_sprocket_inertia\":0.0,\"reducer_speed_ratio\":28.6,\"crank_inertia\":242768.0,\"slow_gear_inertia\":3902.0,\"total_reducer_inertia\":168345.0,\"articulating_inertia\":951889.0,\"dbtype\":1,\"structure_unbalance\":-1500.0,\"reducer_rating\":640.0,\"structure_rating\":36500.0,\"official\":1,\"maximum_stroke\":168.0,\"crankid\":\"94110B CRANKS\",\"B\":0.0,\"lcb\":0.0,\"D\":0.0,\"E\":0.0,\"max_beam_weights\":0.0,\"is_estimated_inertia\":0,\"crank_rotation\":\"anti-clockwise\",\"selectedCrankHole\":3,\"tapercount\":3}"};
 
 // display
 
@@ -752,6 +939,19 @@ updateGraph = function(){
   if (v) {
 	//data.push(v);
 	data.push([v[0]*multiplicationFactor,v[1]*multiplicationFactor]);
+  }
+  index++;
+}
+
+updateGraphForPeakMalfunctionLoad = function(){
+ // var v = dataIn.shift();
+ var newIndex = index%surfaceCardData.length;
+ 
+ var v = surfaceCardData[newIndex];
+
+  if (v) {
+	//data.push(v);
+	data.push([v[0],v[1]*1.2]);
   }
   index++;
 }
